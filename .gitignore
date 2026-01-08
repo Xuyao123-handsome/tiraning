@@ -1,0 +1,32 @@
+# 忽略大型模型文件
+*.bin
+*.safetensors
+*.pth
+*.ckpt
+
+# 忽略数据集
+data/
+datasets/
+# 除非您的数据集很小且需要共享
+
+# 忽略训练输出
+checkpoints/
+output/
+runs/
+wandb/
+
+# 忽略虚拟环境
+venv/
+env/
+__pycache__/
+*.pyc
+
+# 忽略日志文件
+*.log
+logs/
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db

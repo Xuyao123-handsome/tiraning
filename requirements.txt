@@ -1,0 +1,5 @@
+
+deepspeed==0.17.1
+flash_attn==2.7.4.post1
+triton==3.2.0
+
