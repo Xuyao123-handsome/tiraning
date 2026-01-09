@@ -79,13 +79,38 @@ class QwenVLDataset(TorchDataset):
         )
 
         # 返回处理后的输入
-        return {
+        result = {
             "input_ids": inputs["input_ids"].squeeze(),
             "attention_mask": inputs["attention_mask"].squeeze(),
-            "pixel_values": inputs.get("pixel_values", torch.tensor([])),
             "labels": inputs["input_ids"].squeeze()
         }
+        
+        # 添加所有图像相关的张量（Qwen2-VL模型需要）
+        for key in ["pixel_values", "image_grid_thw"]:
+            if key in inputs:
+                result[key] = inputs[key].squeeze()
+        
+        return result
 
+# 自定义Trainer类，适配最新transformers库的参数规范
+class QwenVLTrainer(Trainer):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        """
+        重写compute_loss，适配最新Trainer的参数规范
+        """
+        # 移除labels并计算损失
+        labels = inputs.pop("labels")
+        outputs = model(**inputs)
+        logits = outputs.logits
+
+        # 计算因果语言模型损失
+        loss_fct = torch.nn.CrossEntropyLoss()
+        loss = loss_fct(
+            logits.reshape(-1, logits.shape[-1]),
+            labels.reshape(-1)
+        )
+
+        return (loss, outputs) if return_outputs else loss
 
 def setup_lora_model(model_path):
     """
@@ -162,13 +187,12 @@ def main():
     train_dataset = QwenVLDataset(training_data_path, base_path, processor)
 
     # 配置训练参数
-    # 修正后的TrainingArguments
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=3,
         per_device_train_batch_size=1,
         gradient_accumulation_steps=4,
-        evaluation_strategy="no",
+        eval_strategy="no",
         save_strategy="steps",
         save_steps=500,
         learning_rate=2e-4,
@@ -184,8 +208,8 @@ def main():
         disable_tqdm=False,
     )
 
-    # 创建训练器
-    trainer = Trainer(
+    # 创建自定义训练器
+    trainer = QwenVLTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
